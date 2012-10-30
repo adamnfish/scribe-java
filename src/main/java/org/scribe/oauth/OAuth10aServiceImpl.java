@@ -34,17 +34,7 @@ public class OAuth10aServiceImpl implements OAuthService
   /**
    * {@inheritDoc}
    */
-  public Token getRequestToken(int timeout, TimeUnit unit)
-  {
-    return getRequestToken(new TimeoutTuner(timeout, unit));
-  }
-
   public Token getRequestToken()
-  {
-    return getRequestToken(2, TimeUnit.SECONDS);
-  }
-
-  public Token getRequestToken(RequestTuner tuner)
   {
     config.log("obtaining request token from " + api.getRequestTokenEndpoint());
     OAuthRequest request = new OAuthRequest(api.getRequestTokenVerb(), api.getRequestTokenEndpoint());
@@ -55,7 +45,7 @@ public class OAuth10aServiceImpl implements OAuthService
     appendSignature(request);
 
     config.log("sending request...");
-    Response response = request.send(tuner);
+    Response response = request.send();
     String body = response.getBody();
 
     config.log("response status code: " + response.getCode());
@@ -79,17 +69,7 @@ public class OAuth10aServiceImpl implements OAuthService
   /**
    * {@inheritDoc}
    */
-  public Token getAccessToken(Token requestToken, Verifier verifier, int timeout, TimeUnit unit)
-  {
-    return getAccessToken(requestToken, verifier, new TimeoutTuner(timeout, unit));
-  }
-
   public Token getAccessToken(Token requestToken, Verifier verifier)
-  {
-    return getAccessToken(requestToken, verifier, 2, TimeUnit.SECONDS);
-  }
-
-  public Token getAccessToken(Token requestToken, Verifier verifier, RequestTuner tuner)
   {
     config.log("obtaining access token from " + api.getAccessTokenEndpoint());
     OAuthRequest request = new OAuthRequest(api.getAccessTokenVerb(), api.getAccessTokenEndpoint());
@@ -99,7 +79,7 @@ public class OAuth10aServiceImpl implements OAuthService
     config.log("setting token to: " + requestToken + " and verifier to: " + verifier);
     addOAuthParams(request, requestToken);
     appendSignature(request);
-    Response response = request.send(tuner);
+    Response response = request.send();
     return api.getAccessTokenExtractor().extract(response.getBody());
   }
 
@@ -165,24 +145,6 @@ public class OAuth10aServiceImpl implements OAuthService
           request.addQuerystringParameter(entry.getKey(), entry.getValue());
         }
         break;
-    }
-  }
-
-  private static class TimeoutTuner extends RequestTuner
-  {
-    private final int duration;
-    private final TimeUnit unit;
-
-    public TimeoutTuner(int duration, TimeUnit unit)
-    {
-      this.duration = duration;
-      this.unit = unit;
-    }
-
-    @Override
-    public void tune(Request request)
-    {
-      request.setReadTimeout(duration, unit);
     }
   }
 }

@@ -15,25 +15,21 @@ import org.scribe.exceptions.*;
  */
 public class Request
 {
-  private static final String CONTENT_LENGTH = "Content-Length";
-  private static final String CONTENT_TYPE = "Content-Type";
-  private static RequestTuner NOOP = new RequestTuner() {
-    @Override public void tune(Request _){}
-  };
   public static final String DEFAULT_CONTENT_TYPE = "application/x-www-form-urlencoded";
 
-  private String url;
-  private Verb verb;
-  private ParameterList querystringParams;
-  private ParameterList bodyParams;
-  private Map<String, String> headers;
-  private String payload = null;
-  private HttpURLConnection connection;
-  private String charset;
-  private byte[] bytePayload = null;
-  private boolean connectionKeepAlive = false;
-  private Long connectTimeout = null;
-  private Long readTimeout = null;
+  protected String url;
+  protected Verb verb;
+  protected ParameterList querystringParams;
+  protected ParameterList bodyParams;
+  protected Map<String, String> headers;
+  protected String payload = null;
+  protected String charset;
+  protected byte[] bytePayload = null;
+  protected boolean connectionKeepAlive = false;
+  protected Long connectTimeout = null;
+  protected Long readTimeout = null;
+
+  protected static HttpStrategy httpStrategy = new URLConnectionStrategy();
 
   /**
    * Creates a new Http Request
@@ -57,32 +53,9 @@ public class Request
    * @throws RuntimeException
    *           if the connection cannot be created.
    */
-  public Response send(RequestTuner tuner)
-  {
-    try
-    {
-      createConnection();
-      return doSend(tuner);
-    }
-    catch (Exception e)
-    {
-      throw new OAuthConnectionException(e);
-    }
-  }
-
   public Response send()
   {
-    return send(NOOP);
-  }
-
-  private void createConnection() throws IOException
-  {
-    String completeUrl = getCompleteUrl();
-    if (connection == null)
-    {
-      System.setProperty("http.keepAlive", connectionKeepAlive ? "true" : "false");
-      connection = (HttpURLConnection) new URL(completeUrl).openConnection();
-    }
+      return httpStrategy.send(this);
   }
 
   /**
@@ -93,45 +66,6 @@ public class Request
   public String getCompleteUrl()
   {
     return querystringParams.appendTo(url);
-  }
-
-  Response doSend(RequestTuner tuner) throws IOException
-  {
-    connection.setRequestMethod(this.verb.name());
-    if (connectTimeout != null) 
-    {
-      connection.setConnectTimeout(connectTimeout.intValue());
-    }
-    if (readTimeout != null)
-    {
-      connection.setReadTimeout(readTimeout.intValue());
-    }
-    addHeaders(connection);
-    if (verb.equals(Verb.PUT) || verb.equals(Verb.POST))
-    {
-      addBody(connection, getByteBodyContents());
-    }
-    tuner.tune(this);
-    return new Response(connection);
-  }
-
-  void addHeaders(HttpURLConnection conn)
-  {
-    for (String key : headers.keySet())
-      conn.setRequestProperty(key, headers.get(key));
-  }
-
-  void addBody(HttpURLConnection conn, byte[] content) throws IOException
-  {
-    conn.setRequestProperty(CONTENT_LENGTH, String.valueOf(content.length));
-
-    // Set default content type if none is set.
-    if (conn.getRequestProperty(CONTENT_TYPE) == null)
-    {
-      conn.setRequestProperty(CONTENT_TYPE, DEFAULT_CONTENT_TYPE);
-    }
-    conn.setDoOutput(true);
-    conn.getOutputStream().write(content);
   }
 
   /**
@@ -351,17 +285,30 @@ public class Request
     this.connectionKeepAlive = connectionKeepAlive;
   }
 
-  /*
-   * We need this in order to stub the connection object for test cases
-   */
-  void setConnection(HttpURLConnection connection)
-  {
-    this.connection = connection;
-  }
-
   @Override
   public String toString()
   {
     return String.format("@Request(%s %s)", getVerb(), getUrl());
   }
+
+  public Long getConnectTimeout() {
+      return connectTimeout;
+  }
+
+  public Long getReadTimeout() {
+      return readTimeout;
+  }
+
+  public boolean isConnectionKeepAlive() {
+      return connectionKeepAlive;
+  }
+
+  public static HttpStrategy getHttpStrategy() {
+      return httpStrategy;
+  }
+
+  public static void setHttpStrategy(HttpStrategy httpStrategy) {
+      Request.httpStrategy = httpStrategy;
+  }
+
 }
